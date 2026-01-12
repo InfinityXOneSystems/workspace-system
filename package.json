@@ -1,0 +1,12 @@
+{
+  "name": "@infinityxone/google-workspace-system",
+  "version": "1.0.0",
+  "description": "Modular Google Workspace integration - Gmail, Calendar, Drive, Sheets specialists with full API automation",
+  "main": "src/index.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/InfinityXOneSystems/google-workspace-system.git"
+  },
+  "author": "Infinity X One Systems",
+  "license": "MIT"
+}
