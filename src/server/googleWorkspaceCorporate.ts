@@ -232,6 +232,8 @@ export class GoogleWorkspaceCorporate {
   }
 
   async sendEmail(from: string, to: string, subject: string, body: string): Promise<void> {
+    // Note: Gmail API sends from authenticated user. The 'from' parameter is noted but not used in API call
+    // To send from a specific address, domain-wide delegation must be configured for that user
     await orchestrator.gworkspaceGmail('send', {
       to: [to],
       subject,

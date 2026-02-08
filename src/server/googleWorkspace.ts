@@ -171,10 +171,12 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
 export async function readSheet(spreadsheetId: string, range: string): Promise<SheetsData | null> {
   const result = await orchestrator.gworkspaceSheets("read", { spreadsheetId, range });
   if (result.success && result.data) {
+    // Data from sheets is an array of arrays
+    const values = Array.isArray(result.data) ? result.data : [];
     return {
       spreadsheetId,
       range,
-      values: (result.data as unknown[][]) || [],
+      values,
     };
   }
   return null;
@@ -240,7 +242,7 @@ export async function analyzeDocument(fileId: string): Promise<{
     summary: file.name || "Document",
     keywords: [],
     entities: [],
-    sentiment: "neutral" as const,
+    sentiment: "neutral",
   };
 }
 
