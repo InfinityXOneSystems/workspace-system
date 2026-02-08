@@ -18,6 +18,7 @@ export interface VertexAIConfig {
     gemini: string;
     palm: string;
     embedding: string;
+    vision: string;
   };
   endpoint: string;
 }
@@ -38,14 +39,14 @@ export interface PubSubConfig {
 export interface CloudTasksConfig {
   location: string;
   queues: {
-    default: string;
-    priority: string;
-    scheduled: string;
+    default: { name: string; rateLimitPerSecond: number };
+    priority: { name: string; rateLimitPerSecond: number };
+    scheduled: { name: string; rateLimitPerSecond: number };
   };
 }
 
 export interface BigQueryConfig {
-  dataset: string;
+  datasets: string[];
   tables: {
     events: string;
     analytics: string;
@@ -99,7 +100,8 @@ export const GOOGLE_CLOUD_CONFIG: GoogleCloudConfig = {
     models: {
       gemini: 'gemini-pro',
       palm: 'text-bison@001',
-      embedding: 'textembedding-gecko@001'
+      embedding: 'textembedding-gecko@001',
+      vision: 'gemini-pro-vision'
     },
     endpoint: `https://${process.env.VERTEX_AI_LOCATION || 'us-central1'}-aiplatform.googleapis.com`
   },
@@ -120,14 +122,14 @@ export const GOOGLE_CLOUD_CONFIG: GoogleCloudConfig = {
   cloudTasks: {
     location: process.env.CLOUD_TASKS_LOCATION || 'us-central1',
     queues: {
-      default: 'infinity-x-default-queue',
-      priority: 'infinity-x-priority-queue',
-      scheduled: 'infinity-x-scheduled-queue'
+      default: { name: 'infinity-x-default-queue', rateLimitPerSecond: 500 },
+      priority: { name: 'infinity-x-priority-queue', rateLimitPerSecond: 1000 },
+      scheduled: { name: 'infinity-x-scheduled-queue', rateLimitPerSecond: 100 }
     }
   },
   
   bigQuery: {
-    dataset: 'infinity_x_data',
+    datasets: ['infinity_x_data'],
     tables: {
       events: 'events',
       analytics: 'analytics',
@@ -177,7 +179,7 @@ export function getPubSubTopic(topic: keyof typeof GOOGLE_CLOUD_CONFIG.pubsub.to
 }
 
 export function getBigQueryTable(table: keyof typeof GOOGLE_CLOUD_CONFIG.bigQuery.tables): string {
-  return `${GOOGLE_CLOUD_CONFIG.project.id}.${GOOGLE_CLOUD_CONFIG.bigQuery.dataset}.${GOOGLE_CLOUD_CONFIG.bigQuery.tables[table]}`;
+  return `${GOOGLE_CLOUD_CONFIG.project.id}.${GOOGLE_CLOUD_CONFIG.bigQuery.datasets[0]}.${GOOGLE_CLOUD_CONFIG.bigQuery.tables[table]}`;
 }
 
 export function getStorageBucket(bucket: keyof typeof GOOGLE_CLOUD_CONFIG.storage.buckets): string {

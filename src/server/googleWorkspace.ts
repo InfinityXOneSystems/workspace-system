@@ -169,24 +169,24 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
 
 // Sheets Operations
 export async function readSheet(spreadsheetId: string, range: string): Promise<SheetsData | null> {
-  const result = await orchestrator.gworkspaceSheets(spreadsheetId, "read", range);
+  const result = await orchestrator.gworkspaceSheets("read", { spreadsheetId, range });
   if (result.success && result.data) {
     return {
       spreadsheetId,
       range,
-      values: (result.data as { values: unknown[][] }).values || [],
+      values: (result.data as unknown[][]) || [],
     };
   }
   return null;
 }
 
 export async function writeSheet(spreadsheetId: string, range: string, values: unknown[][]): Promise<boolean> {
-  const result = await orchestrator.gworkspaceSheets(spreadsheetId, "write", range, values);
+  const result = await orchestrator.gworkspaceSheets("update", { spreadsheetId, range, values });
   return result.success;
 }
 
 export async function appendSheet(spreadsheetId: string, range: string, values: unknown[][]): Promise<boolean> {
-  const result = await orchestrator.gworkspaceSheets(spreadsheetId, "append", range, values);
+  const result = await orchestrator.gworkspaceSheets("append", { spreadsheetId, range, values });
   return result.success;
 }
 
@@ -234,36 +234,13 @@ export async function analyzeDocument(fileId: string): Promise<{
     };
   }
 
-  // Use orchestrator's GPT for analysis
-  const result = await orchestrator.gptChat([
-    {
-      role: "system",
-      content: "You are a document analysis AI. Analyze the following document and extract: summary, keywords, entities, and sentiment.",
-    },
-    {
-      role: "user",
-      content: `Analyze this document: ${file.name}`,
-    },
-  ]);
-
-  if (result.success && result.data?.choices?.[0]?.message?.content) {
-    try {
-      return JSON.parse(result.data.choices[0].message.content);
-    } catch {
-      return {
-        summary: result.data.choices[0].message.content,
-        keywords: [],
-        entities: [],
-        sentiment: "neutral",
-      };
-    }
-  }
-
+  // Document analysis is not yet implemented
+  // TODO: Integrate with Vertex AI or other LLM service for document analysis
   return {
-    summary: "",
+    summary: file.name || "Document",
     keywords: [],
     entities: [],
-    sentiment: "neutral",
+    sentiment: "neutral" as const,
   };
 }
 

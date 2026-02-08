@@ -18,12 +18,12 @@ export interface OrchestratorResult {
 }
 
 export class Orchestrator {
-  private auth: WorkspaceAuth;
-  private gmail: GmailTools;
-  private calendar: CalendarTools;
-  private drive: DriveTools;
-  private sheets: SheetsTools;
-  private docs: DocsTools;
+  private auth?: WorkspaceAuth;
+  private gmail?: GmailTools;
+  private calendar?: CalendarTools;
+  private drive?: DriveTools;
+  private sheets?: SheetsTools;
+  private docs?: DocsTools;
   private initialized: boolean = false;
 
   constructor() {
@@ -43,7 +43,7 @@ export class Orchestrator {
   }
 
   private async ensureInitialized() {
-    if (!this.initialized && config.serviceAccountPath) {
+    if (!this.initialized && config.serviceAccountPath && this.gmail && this.calendar && this.drive && this.sheets && this.docs) {
       try {
         await this.gmail.initialize();
         await this.calendar.initialize();
@@ -62,6 +62,10 @@ export class Orchestrator {
    * Gmail operations orchestration
    */
   async gworkspaceGmail(action: string, params: any): Promise<OrchestratorResult> {
+    if (!this.gmail) {
+      return { success: false, error: 'Gmail not initialized. Check GOOGLE_APPLICATION_CREDENTIALS.' };
+    }
+    
     try {
       await this.ensureInitialized();
 
@@ -84,7 +88,7 @@ export class Orchestrator {
 
         case 'read':
         case 'get':
-          const message = await this.gmail.readEmail(params.messageId);
+          const message = await this.gmail.getMessage(params.messageId);
           return { success: true, data: message };
 
         case 'draft':
@@ -99,7 +103,7 @@ export class Orchestrator {
         default:
           return { success: false, error: `Unknown Gmail action: ${action}` };
       }
-    } catch (error) {
+    } catch (error: any) {
       return { success: false, error: error.message };
     }
   }
@@ -108,41 +112,34 @@ export class Orchestrator {
    * Calendar operations orchestration
    */
   async gworkspaceCalendar(action: string, params: any): Promise<OrchestratorResult> {
+    if (!this.calendar) {
+      return { success: false, error: 'Calendar not initialized. Check GOOGLE_APPLICATION_CREDENTIALS.' };
+    }
+    
     try {
       await this.ensureInitialized();
 
       switch (action) {
         case 'list':
-          const events = await this.calendar.listEvents(
-            params.calendarId || 'primary',
-            params.timeMin,
-            params.timeMax
-          );
+          const events = await this.calendar.listEvents(params.maxResults || 10);
           return { success: true, data: events };
 
         case 'create':
-          const newEvent = await this.calendar.createEvent(
-            params.calendarId || 'primary',
-            params.event
-          );
+          const newEvent = await this.calendar.createEvent(params.event);
           return { success: true, data: newEvent };
 
         case 'update':
-          const updatedEvent = await this.calendar.updateEvent(
-            params.calendarId || 'primary',
-            params.eventId,
-            params.updates
-          );
+          const updatedEvent = await this.calendar.updateEvent(params.eventId, params.updates);
           return { success: true, data: updatedEvent };
 
         case 'delete':
-          await this.calendar.deleteEvent(params.calendarId || 'primary', params.eventId);
+          await this.calendar.deleteEvent(params.eventId);
           return { success: true };
 
         default:
           return { success: false, error: `Unknown Calendar action: ${action}` };
       }
-    } catch (error) {
+    } catch (error: any) {
       return { success: false, error: error.message };
     }
   }
@@ -151,6 +148,10 @@ export class Orchestrator {
    * Drive operations orchestration
    */
   async gworkspaceDrive(action: string, params: any): Promise<OrchestratorResult> {
+    if (!this.drive) {
+      return { success: false, error: 'Drive not initialized. Check GOOGLE_APPLICATION_CREDENTIALS.' };
+    }
+    
     try {
       await this.ensureInitialized();
 
@@ -161,8 +162,9 @@ export class Orchestrator {
           return { success: true, data: files };
 
         case 'get':
-          const file = await this.drive.getFile(params.fileId);
-          return { success: true, data: file };
+          // Drive doesn't have a getFile method, use searchFiles with specific query
+          const file = await this.drive.searchFiles(`name='${params.fileName}'`, 1);
+          return { success: true, data: file[0] || null };
 
         case 'create':
         case 'upload':
@@ -193,7 +195,7 @@ export class Orchestrator {
         default:
           return { success: false, error: `Unknown Drive action: ${action}` };
       }
-    } catch (error) {
+    } catch (error: any) {
       return { success: false, error: error.message };
     }
   }
@@ -202,43 +204,46 @@ export class Orchestrator {
    * Sheets operations orchestration
    */
   async gworkspaceSheets(action: string, params: any): Promise<OrchestratorResult> {
+    if (!this.sheets) {
+      return { success: false, error: 'Sheets not initialized. Check GOOGLE_APPLICATION_CREDENTIALS.' };
+    }
+    
     try {
       await this.ensureInitialized();
 
       switch (action) {
         case 'create':
-          const spreadsheet = await this.sheets.createSpreadsheet(params.title);
+          const spreadsheet = await this.sheets.createSpreadsheet({ 
+            title: params.title,
+            sheetTitles: params.sheetTitles
+          });
           return { success: true, data: spreadsheet };
 
         case 'read':
         case 'get':
-          const data = await this.sheets.getValues(params.spreadsheetId, params.range);
+          const data = await this.sheets.readData(params.spreadsheetId, params.range);
           return { success: true, data };
 
         case 'append':
-          await this.sheets.appendValues(params.spreadsheetId, params.range, params.values);
+          await this.sheets.appendData({
+            spreadsheetId: params.spreadsheetId,
+            range: params.range,
+            values: params.values
+          });
           return { success: true };
 
         case 'update':
-          await this.sheets.updateValues(params.spreadsheetId, params.range, params.values);
+          await this.sheets.updateData(params.spreadsheetId, params.range, params.values);
           return { success: true };
 
         case 'format':
-          await this.sheets.formatCells(
-            params.spreadsheetId,
-            params.sheetId,
-            params.startRow,
-            params.endRow,
-            params.startCol,
-            params.endCol,
-            params.format
-          );
+          await this.sheets.formatCells(params.spreadsheetId, params.requests);
           return { success: true };
 
         default:
           return { success: false, error: `Unknown Sheets action: ${action}` };
       }
-    } catch (error) {
+    } catch (error: any) {
       return { success: false, error: error.message };
     }
   }
@@ -247,6 +252,10 @@ export class Orchestrator {
    * Docs operations orchestration
    */
   async gworkspaceDocs(action: string, params: any): Promise<OrchestratorResult> {
+    if (!this.docs) {
+      return { success: false, error: 'Docs not initialized. Check GOOGLE_APPLICATION_CREDENTIALS.' };
+    }
+    
     try {
       await this.ensureInitialized();
 
@@ -266,7 +275,7 @@ export class Orchestrator {
         default:
           return { success: false, error: `Unknown Docs action: ${action}` };
       }
-    } catch (error) {
+    } catch (error: any) {
       return { success: false, error: error.message };
     }
   }
