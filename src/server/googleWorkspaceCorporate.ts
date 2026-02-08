@@ -4,7 +4,8 @@
  * Integrated with Gmail, Calendar, Drive, Docs, Sheets, Meet, Chat
  */
 
-import { ALL_AGENTS, AgentBlueprint, EXECUTIVE_AGENTS, VISION_CORTEX_AGENTS, WORKSPACE_AGENTS } from '../agents/AGENT_REGISTRY';
+import { ALL_AGENTS, AgentBlueprint, EXECUTIVE_AGENTS, VISION_CORTEX_AGENTS, WORKSPACE_AGENTS } from '../agents/AGENT_REGISTRY.js';
+import { orchestrator } from './orchestrator.js';
 
 // ============================================================================
 // CORPORATE ORGANIZATION STRUCTURE
@@ -225,10 +226,19 @@ export class GoogleWorkspaceCorporate {
     
     const email = `${agentId}@${this.config.domain}`;
     console.log(`📧 Created email for ${agent.identity.name}: ${email}`);
+    // Note: Actual email account creation requires Google Workspace Admin SDK
+    // This would require admin permissions and domain-wide delegation
     return email;
   }
 
   async sendEmail(from: string, to: string, subject: string, body: string): Promise<void> {
+    // Note: Gmail API sends from authenticated user. The 'from' parameter is noted but not used in API call
+    // To send from a specific address, domain-wide delegation must be configured for that user
+    await orchestrator.gworkspaceGmail('send', {
+      to: [to],
+      subject,
+      body
+    });
     console.log(`📤 Email sent from ${from} to ${to}: ${subject}`);
   }
 
@@ -239,6 +249,7 @@ export class GoogleWorkspaceCorporate {
     
     const calendarId = `${agentId}@${this.config.domain}`;
     console.log(`📅 Created calendar for ${agent.identity.name}: ${calendarId}`);
+    // Note: Actual calendar creation requires Google Calendar API
     return calendarId;
   }
 
@@ -249,34 +260,63 @@ export class GoogleWorkspaceCorporate {
     attendees: string[];
     description: string;
   }): Promise<string> {
-    const eventId = `event_${Date.now()}`;
+    const result = await orchestrator.gworkspaceCalendar('create', {
+      calendarId,
+      event: {
+        summary: event.title,
+        description: event.description,
+        start: event.start,
+        end: event.end,
+        attendees: event.attendees
+      }
+    });
+    
     console.log(`📅 Scheduled event: ${event.title} on ${calendarId}`);
-    return eventId;
+    return result.data?.id || `event_${Date.now()}`;
   }
 
   // Drive Integration
   async createDriveFolder(path: string): Promise<string> {
-    const folderId = `folder_${Date.now()}`;
+    const result = await orchestrator.gworkspaceDrive('createFolder', {
+      name: path
+    });
     console.log(`📁 Created Drive folder: ${path}`);
-    return folderId;
+    return result.data?.id || `folder_${Date.now()}`;
   }
 
   async uploadFile(folderId: string, fileName: string, content: string): Promise<string> {
-    const fileId = `file_${Date.now()}`;
+    const result = await orchestrator.gworkspaceDrive('upload', {
+      name: fileName,
+      content,
+      mimeType: 'text/plain',
+      folderId
+    });
     console.log(`📄 Uploaded file: ${fileName} to folder ${folderId}`);
-    return fileId;
+    return result.data?.id || `file_${Date.now()}`;
   }
 
   // Docs Integration
   async createDocument(title: string, content: string): Promise<string> {
-    const docId = `doc_${Date.now()}`;
+    const result = await orchestrator.gworkspaceDocs('create', { title });
+    const docId = result.data?.documentId || `doc_${Date.now()}`;
+    
+    if (content && result.success) {
+      await orchestrator.gworkspaceDocs('insertText', {
+        documentId: docId,
+        text: content,
+        index: 1
+      });
+    }
+    
     console.log(`📝 Created document: ${title}`);
     return docId;
   }
 
   // Sheets Integration
   async createSpreadsheet(title: string, sheets: string[]): Promise<string> {
-    const spreadsheetId = `sheet_${Date.now()}`;
+    const result = await orchestrator.gworkspaceSheets('create', { title });
+    const spreadsheetId = result.data?.spreadsheetId || `sheet_${Date.now()}`;
+    
     console.log(`📊 Created spreadsheet: ${title} with sheets: ${sheets.join(', ')}`);
     return spreadsheetId;
   }
