@@ -11,7 +11,7 @@
  * Uses Manus MCP integration for authentication
  */
 
-import { orchestrator } from "./orchestrator";
+import { orchestrator } from "./orchestrator.js";
 
 // Types for Google Workspace operations
 interface GmailMessage {

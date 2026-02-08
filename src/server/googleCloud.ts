@@ -3,7 +3,7 @@
  * Complete GCP Service Integration Module
  */
 
-import { GOOGLE_CLOUD_CONFIG } from '../shared/globalMetaSuite';
+import { GOOGLE_CLOUD_CONFIG } from '../shared/globalMetaSuite.js';
 
 // ============================================================================
 // FIRESTORE CLIENT
